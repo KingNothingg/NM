@@ -1,0 +1,255 @@
+\section{Исходный код}
+
+Ниже приведена реализация класса разреженной матрицы:
+
+\begin{lstlisting}[language=C++]
+template<typename T>
+class SparseMatrix {
+
+private:
+    std::vector<int> rows;
+    std::vector<int> columns;
+    std::vector<T> data;
+    int m, n;
+
+    void insert(int ind, int row, int col, T val) {
+        if (data.empty()) {
+            data = std::vector<T> (1, val);
+            columns = std::vector<int> (1, col);
+        } else {
+            data.insert(data.begin() + ind, val);
+            columns.insert(columns.begin() + ind, col);
+        }
+        for (int i = row + 1; i <= m; ++i) {
+            rows[i]++;
+        }
+    }
+
+    void remove(int index, int row) {
+        data.erase(data.begin() + index);
+        columns.erase(columns.begin() + index);
+
+        for (int i = row + 1; i <= m; ++i) {
+            rows[i]--;
+        }
+    }
+
+
+public:
+    SparseMatrix(int row, int col) {
+        m = row;
+        n = col;
+        rows = std::vector<int> (row + 1, 0);
+    }
+
+    SparseMatrix(int _n) {
+        m = _n;
+        n = _n;
+        rows = std::vector<int> (_n + 1, 0);
+    }
+
+    int size() const {
+        if (n == m) {
+            return n;
+        } else {
+            return 0;
+        }
+    }
+
+    SparseMatrix(const SparseMatrix<T> &matrix) {
+        n = matrix.n;
+        m = matrix.m;
+        rows = matrix.rows;
+        columns = matrix.columns;
+        data = matrix.data;
+    }
+
+    SparseMatrix(const std::vector<std::vector<T>> &matrix) {
+        int count = 0;
+        rows.clear();
+        for (int i = 0; i < matrix.size(); ++i) {
+            rows.push_back(count);
+            for (int j = 0; j < matrix[i].size(); ++j) {
+                if (matrix[i][j] != 0)
+                    ++count;
+            }
+        }
+        rows.push_back(count);
+        columns.resize(count);
+        data.resize(count);
+        n = matrix[0].size();
+        m = matrix.size();
+        int k = 0;
+        for (int i = 0; i < matrix.size(); ++i) {
+            for (int j = 0; j < matrix[i].size(); ++j) {
+                if (matrix[i][j] != 0) {
+                 columns[k] = j;
+                 data[k] = matrix[i][j];
+                 ++k;
+                }
+            }
+        }
+    }
+
+    T get(int row, int column) const {
+        if (column > n || row > m) {
+            throw "Trying to get non-existent element";
+        }
+        int currcol;
+        for (int pos = rows[row]; pos < rows[row+1]; ++pos) {
+            currcol = columns[pos];
+            if (currcol == column) {
+                return data[pos];
+            } else if (currcol > column) {
+                break;
+            }
+        }
+        return T();
+    }
+
+    void swapRows(int n, int m) {
+
+    }
+
+    void set(T val, int row, int column) {
+        if (column > n || row > m) {
+            throw "Trying to set non-existent element";
+        }
+        int pos = rows[row];
+        int currCol = 0;
+
+        for (; pos < rows[row + 1]; ++pos) {
+            currCol = columns[pos];
+            if (currCol >= column) {
+                break;
+            }
+        }
+
+        if (currCol != column || data.empty() || pos >= data.size()) {
+            insert(pos, row, column, val);
+        } else if (val == T()) {
+            remove(pos, row);
+        } else {
+            data[pos] = val;
+        }
+    }
+
+    std::vector<T> operator *(const std::vector<T> &x) {
+        if (n != x.size()) {
+            throw "Invalid dimensions on multiply";
+        }
+        std::vector<T> result(m, T());
+        if (!data.empty()) {
+            for (int i = 0; i < m; ++i) {
+                T sum = T();
+                for (int j = rows[i]; j < rows[i + 1]; ++j) {
+                    sum = sum + data[j] * x[columns[j]];
+                }
+                result[i] = sum;
+            }
+        }
+        return result;
+    }
+
+    friend SparseMatrix<T> operator *(const SparseMatrix<T> &lhs, SparseMatrix<T> &mat) {
+        if (lhs.n != mat.m) {
+            throw "Invalid dimensions on multiply";
+        }
+        SparseMatrix<T> result(lhs.m, mat.n);
+        T a;
+        for (int i = 0; i < lhs.m; ++i) {
+            for (int j = 0; j < mat.n; ++j) {
+                a = T();
+                for (int k = 0; k < lhs.n; ++k) {
+                    a = a + lhs.get(i, k) * mat.get(k, j);
+                }
+                result.set(a, i, j);
+            }
+        }
+        return result;
+    }
+
+    friend SparseMatrix<T> operator +(const SparseMatrix<T> &lhs, SparseMatrix<T> &rhs) {
+        if (lhs.m != rhs.m || lhs.n != rhs.m) {
+            throw "Invalid dimensions on addition";
+        }
+        SparseMatrix<T> result(lhs.m, lhs.n);
+        for (int i = 0; i < lhs.m; ++i) {
+            for (int j = 0; j < lhs.n; ++j) {
+                result.set(lhs.get(i,j) + rhs.get(i,j), i, j);
+            }
+        }
+        return result;
+    }
+
+    friend SparseMatrix<T> operator -(const SparseMatrix<T> &lhs, SparseMatrix<T> &rhs) {
+        if (lhs.m != rhs.m || lhs.n != rhs.m) {
+            throw "Invalid dimensions on substraction";
+        }
+        SparseMatrix<T> result(lhs.m, lhs.n);
+        for (int i = 0; i < lhs.m; ++i) {
+            for (int j = 0; j < lhs.n; ++j) {
+                result.set(lhs.get(i,j) - rhs.get(i,j), i, j);
+            }
+        }
+        return result;
+    }
+
+    friend std::ostream & operator << (std::ostream &os, const SparseMatrix<T> &matrix) {
+        for (int i = 0; i < matrix.m; ++i) {
+            for (int j = 0; j < matrix.n; ++j) {
+                if (j != 0) {
+                    os << " ";
+                }
+                os << matrix.get(i, j);
+            }
+            if (i < matrix.m - 1) {
+                os << std::endl;
+            }
+        }
+        return os;
+    }
+};
+\end{lstlisting}
+
+Ниже приведён листинг метода сопряженных градиентов:
+
+\begin{lstlisting}[language=C++]
+template <typename T>
+class ConjGrad {
+public:
+    SparseMatrix<T> A;
+    std::vector<T> b;
+    double eps;
+
+    ConjGrad(SparseMatrix<T> &_A, std::vector<T> &_b, double _eps) : A(_A), b(_b), eps(_eps) {};
+
+    std::vector<T> solve(bool flag) {
+        if (flag) {
+            std::cout << "Матрица системы: \n" << A;
+            std::cout << "Столбец свободных членов: \n" << b << '\n';
+        }
+        std::vector<T> x1(b.size(), 0);
+        std::vector<T> r1 = b - (A * x1);
+        std::vector<T> p1 = r1;
+        int count = 0;
+        do {
+            std::vector<T> temp = A * p1;
+            T alpha = (r1 * r1)/(temp * p1);
+            std::vector<T> xk = x1 + (p1 * alpha);
+            std::vector<T> rk = r1 - (temp) * alpha;
+            T t = rk * rk;
+            T t2 = r1 * r1;
+            T beta = (rk * rk)/(r1 * r1);
+            std::vector<T> pk = rk + (p1 * beta);
+            x1  = xk;
+            r1 = rk;
+            p1 = pk;
+            count++;
+        } while (norm(r1) > eps);
+        std::cout << "Количество итераций метода сопряженных градиентов: " << count << "\n";
+        return x1;
+    }
+};
+\end{lstlisting}
+\pagebreak

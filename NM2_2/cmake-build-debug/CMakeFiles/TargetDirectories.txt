@@ -1,0 +1,3 @@
+/home/kng/CLionProjects/NM2_2/cmake-build-debug/CMakeFiles/NM2_2.dir
+/home/kng/CLionProjects/NM2_2/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/kng/CLionProjects/NM2_2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
